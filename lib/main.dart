@@ -1,7 +1,98 @@
 import 'package:flutter/material.dart';
+import 'package:lab_b2/Service/weather_service.dart';
+import 'package:lab_b2/Vm/weather_vm.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const WeatherApp());
+}
+
+class WeatherApp extends StatelessWidget {
+  const WeatherApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Weather demo',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        useMaterial3: true,
+      ),
+      home: const WeatherScreen(),
+    );
+  }
+}
+
+class WeatherScreen extends StatefulWidget {
+  const WeatherScreen({super.key});
+
+  @override
+  State<WeatherScreen> createState() => _WeatherScreenState();
+}
+
+class _WeatherScreenState extends State<WeatherScreen> {
+  late WeatherVm vm;
+  bool loading = true;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    vm = WeatherVm(WeatherService());
+    _loadWeather();
+  }
+
+  Future<void> _loadWeather() async {
+    try {
+      // TODO: change lon/lat to whatever you want
+      await vm.loadWeather(14.333, 60.383);
+    } catch (e) {
+      error = e.toString();
+    } finally {
+      setState(() {
+        loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('SMHI forecast'),
+      ),
+      body: Center(
+        child: () {
+          if (loading) {
+            return const CircularProgressIndicator();
+          }
+          if (error != null) {
+            return Text('Error: $error');
+          }
+          if (vm.weathers.isEmpty) {
+            return const Text('No data');
+          }
+
+          return ListView.builder(
+            itemCount: vm.weathers.length,
+            itemBuilder: (context, index) {
+              final w = vm.weathers[index];
+
+              // quick & dirty formatting of DateTime
+              final dateText = w.date.toLocal().toString().substring(0, 16);
+              final tempText =
+                  '${w.temperatureC.toStringAsFixed(1)} °C';
+
+              return ListTile(
+                leading: const Icon(Icons.radar),
+                title: Text(dateText),
+                subtitle: Text(tempText),
+              );
+            },
+          );
+        }(),
+      ),
+    );
+  }
 }
 
 class MyApp extends StatelessWidget {
