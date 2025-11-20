@@ -1,30 +1,25 @@
 import 'dart:convert';
-import 'package:lab_b2/Model/weather.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:lab_b2/Parser/weather_parser.dart';
+import 'package:lab_b2/Model/weather.dart';
 
 class WeatherService {
+  final WeatherParser parser = WeatherParser();
+
   Future<List<Weather>> fetchWeather(double lon, double lat) async {
-    final url = Uri.parse('https://maceo.sth.kth.se/weather/forecast?lonLat=lon/$lon/lat/$lat');
-    
+
+    final url = Uri.parse(
+      'https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/$lon/lat/$lat/data.json',
+    );
+
     final response = await http.get(url);
+
     if (response.statusCode != 200) {
-      throw Exception('Failed to load weather data');
+      throw Exception('API returned status ${response.statusCode}');
     }
 
-    final Map<String, dynamic> data = jsonDecode(response.body);
-    final series = data['timeSeries'] as List<dynamic>;  
-    
-    return series.map((entry) {
-      final validTime = entry['validTime'] as String;
-      final params = entry['parameters'] as List<dynamic>;
-      final tempParam = params.firstWhere((p) => p['name'] == 't');
-      final temp = (tempParam['values'][0] as num).toDouble();
+    final Map<String, dynamic> json = jsonDecode(response.body);
 
-      return Weather(
-        date: DateTime.parse(validTime),
-        temperatureC: temp,
-      );
-    }).toList();
-    }
+    return parser.parse(json);
+  }
 }
