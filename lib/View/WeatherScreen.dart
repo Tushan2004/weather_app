@@ -25,6 +25,13 @@ class _WeatherScreenState extends State<WeatherScreen> {
     final latText = _latController.text;
     final lonText = _lonController.text;
 
+    // Nollställ endast flaggor, behåll gammal cached data
+    setState(() {
+      vm.isOffline = false;
+      vm.error = null;
+      // vm.weathers = []; <-- tas bort för att behålla cached data offline
+    });
+
     final lat = double.tryParse(latText);
     final lon = double.tryParse(lonText);
 
@@ -54,39 +61,85 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("SMHI Forecast")),
-      body: Column(
+    final isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
+
+    final inputFields = Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
         children: [
+          Expanded(
+            child: TextField(
+              controller: _latController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: "Latitude"),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: TextField(
+              controller: _lonController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: "Longitude"),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _fetchWeather,
+          ),
+        ],
+      ),
+    );
+
+    final statusMessages = Column(
+      children: [
+        if (vm.isOffline && vm.weathers.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text(
+              "Offline visar sparad data",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        if (vm.error != null)
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Row(
+            child: Text(
+              vm.error!,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+      ],
+    );
+
+    final weatherList = Expanded(child: WeatherView(vm));
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("SMHI Forecast")),
+      body: isPortrait
+          ? Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _latController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Latitude"),
+                inputFields,
+                statusMessages,
+                weatherList,
+              ],
+            )
+          : Row(
+              children: [
+                Flexible(
+                  flex: 1,
+                  child: Column(
+                    children: [
+                      inputFields,
+                      statusMessages,
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _lonController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: "Longitude"),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: _fetchWeather,
+                Flexible(
+                  flex: 2,
+                  child: weatherList,
                 ),
               ],
             ),
-          ),
-          Expanded(child: WeatherView(vm)),
-        ],
-      ),
     );
   }
 }

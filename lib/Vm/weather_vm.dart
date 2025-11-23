@@ -14,33 +14,44 @@ class WeatherVm {
   bool isOffline = false;
   String? error;
 
+  /// Ladda väderdata för givna koordinater
   Future<void> loadWeather(double lon, double lat) async {
     isLoading = true;
     error = null;
-    isOffline = false;
+    isOffline = false; // Nollställ offline-flaggan
 
     try {
+      // Kontrollera internet
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity == ConnectivityResult.none) {
-        isOffline = true;
+        // Ingen internet → ladda cache
         await _loadSavedWeather();
-        if (weathers.isEmpty) error = "No internet and no saved data";
+        if (weathers.isNotEmpty) {
+          isOffline = true;
+          error = "No internet, showing cached weather";
+        } else {
+          error = "No internet and no saved data";
+        }
         return;
       }
 
+      // Internet finns → hämta från nätet
       final allWeather = await weatherService.fetchWeather(lon, lat);
       weathers = _extract7Days(allWeather);
       await _saveWeatherLocally(weathers);
+      isOffline = false; // online → inte offline
+
     } catch (e) {
+      // Internet finns men API fel → visa endast error, töm gammal cache
+      weathers = [];
+      isOffline = false;
       error = "Failed to load weather: $e";
-      await _loadSavedWeather();
-      if (weathers.isNotEmpty) isOffline = true;
     } finally {
       isLoading = false;
     }
   }
 
-  // Filtrera till 7 dagar
+  /// Filtrera till 7 dagar
   List<Weather> _extract7Days(List<Weather> allWeather) {
     final Map<String, Weather> daily = {};
     for (var w in allWeather) {
@@ -51,7 +62,7 @@ class WeatherVm {
     return daily.values.toList();
   }
 
-  // Spara lokalt
+  /// Spara data lokalt (cache)
   Future<void> _saveWeatherLocally(List<Weather> weathers) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = weathers.map((w) => {
@@ -62,7 +73,7 @@ class WeatherVm {
     prefs.setString('saved_weather', jsonEncode(jsonList));
   }
 
-  // Ladda sparad data
+  /// Ladda sparad data (cache)
   Future<void> _loadSavedWeather() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString('saved_weather');
@@ -78,7 +89,7 @@ class WeatherVm {
     }
   }
 
-  // Validera lat/lon
+  /// Validera att lat/lon är giltiga decimaler
   bool validateLatLon(String latStr, String lonStr) {
     final lat = double.tryParse(latStr);
     final lon = double.tryParse(lonStr);
