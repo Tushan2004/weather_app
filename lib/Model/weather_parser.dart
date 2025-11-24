@@ -32,6 +32,7 @@ class WeatherParser {
         date: DateTime.parse(validTime),
         temperatureC: temperatureC,
         cloudiness: cloudiness,
+        
       );
     }).toList();
   }

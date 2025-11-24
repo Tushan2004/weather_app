@@ -1,10 +1,11 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:lab_b2/Service/weather_service.dart';
 import 'package:lab_b2/Model/weather.dart';
 
-class WeatherVm {
+class WeatherVm extends ChangeNotifier {
   final WeatherService weatherService;
 
   WeatherVm(this.weatherService);
@@ -18,37 +19,67 @@ class WeatherVm {
   Future<void> loadWeather(double lon, double lat) async {
     isLoading = true;
     error = null;
-    isOffline = false; // Nollställ offline-flaggan
+    isOffline = false;
+    notifyListeners();
 
     try {
-      // Kontrollera internet
+      // 1. Snabbkoll: Har vi uppenbart ingen uppkoppling?
       final connectivity = await Connectivity().checkConnectivity();
-      if (connectivity == ConnectivityResult.none) {
-        // Ingen internet → ladda cache
+      
+      bool noConnection = connectivity == ConnectivityResult.none; 
+      
+      if (noConnection) {
         await _loadSavedWeather();
-        if (weathers.isNotEmpty) {
-          isOffline = true;
-          error = "No internet, showing cached weather";
-        } else {
-          error = "No internet and no saved data";
-        }
-        return;
+        _setOfflineStatus();
+        return; 
       }
 
-      // Internet finns → hämta från nätet
+      // 2. Försök hämta från API 
       final allWeather = await weatherService.fetchWeather(lon, lat);
+      
+      // Om vi kommer hit lyckades hämtningen
       weathers = _extract7Days(allWeather);
-      await _saveWeatherLocally(weathers);
-      isOffline = false; // online → inte offline
+      await _saveWeatherLocally(weathers); 
+      isOffline = false;
 
     } catch (e) {
-      // Internet finns men API fel → visa endast error, töm gammal cache
-      weathers = [];
-      isOffline = false;
-      error = "Failed to load weather: $e";
+      // 3. Hantera fel
+      String errorMsg = e.toString();
+
+      // Kontrollera om det är ett API-fel (t.ex. ogiltiga koordinater som ger 404 eller 400)
+      if (errorMsg.contains("404") || errorMsg.contains("400") || errorMsg.contains("out of bounds")) {
+        // Detta är INTE ett nätverksfel. Platsen är felaktig.
+        weathers = []; 
+        isOffline = false;
+        error = "Platsen saknar väderdata (utanför SMHI:s område eller ogiltig).";
+      } else {
+        // Detta är troligen ett nätverksfel -> Ladda cache
+        await _loadSavedWeather();
+        
+        if (weathers.isNotEmpty) {
+          isOffline = true;
+          error = "Kunde inte nå servern. Visar sparad data.";
+        } else {
+          weathers = [];
+          isOffline = false;
+          error = "Kunde inte ladda väder: $e";
+        }
+      }
     } finally {
       isLoading = false;
+      notifyListeners();
     }
+  }
+
+  // Hjälpmetod för att sätta status när vi laddat cache manuellt
+  void _setOfflineStatus() {
+    if (weathers.isNotEmpty) {
+      isOffline = true;
+      error = "Inget internet, visar sparad väderdata";
+    } else {
+      error = "Inget internet och ingen sparad data";
+    }
+    notifyListeners();
   }
 
   /// Filtrera till 7 dagar
@@ -64,28 +95,40 @@ class WeatherVm {
 
   /// Spara data lokalt (cache)
   Future<void> _saveWeatherLocally(List<Weather> weathers) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonList = weathers.map((w) => {
-          'date': w.date.toIso8601String(),
-          'temperatureC': w.temperatureC,
-          'cloudiness': w.cloudiness,
-        }).toList();
-    prefs.setString('saved_weather', jsonEncode(jsonList));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = weathers.map((w) => {
+            'date': w.date.toIso8601String(),
+            'temperatureC': w.temperatureC,
+            'cloudiness': w.cloudiness,
+          }).toList();
+      
+      await prefs.setString('saved_weather', jsonEncode(jsonList));
+    } catch (e) {
+      // Hantera sparfel tyst eller logga om nödvändigt
+    }
   }
 
   /// Ladda sparad data (cache)
   Future<void> _loadSavedWeather() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString('saved_weather');
-    if (saved != null) {
-      final List<dynamic> jsonList = jsonDecode(saved);
-      weathers = jsonList.map((json) {
-        return Weather(
-          date: DateTime.parse(json['date']),
-          temperatureC: (json['temperatureC'] as num).toDouble(),
-          cloudiness: (json['cloudiness'] as num).toDouble(),
-        );
-      }).toList();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('saved_weather');
+      
+      if (saved != null) {
+        final List<dynamic> jsonList = jsonDecode(saved);
+        weathers = jsonList.map((json) {
+          return Weather(
+            date: DateTime.parse(json['date']),
+            temperatureC: (json['temperatureC'] as num).toDouble(),
+            cloudiness: (json['cloudiness'] as num).toDouble(),
+          );
+        }).toList();
+      } else {
+        weathers = [];
+      }
+    } catch (e) {
+      weathers = [];
     }
   }
 

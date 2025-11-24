@@ -19,18 +19,32 @@ class _WeatherScreenState extends State<WeatherScreen> {
   void initState() {
     super.initState();
     vm = WeatherVm(WeatherService());
+    // 1. KORRIGERING: Registrera lyssnare för MVVM State Management
+    // Detta gör att build-metoden körs om när VM ändrar status (offline-data, isLoading, error)
+    vm.addListener(_onVmChange);
+  }
+
+  // 2. KORRIGERING: Metod som anropas av VM:en
+  void _onVmChange() {
+    setState(() {}); // Rita om UI:n
+  }
+
+  @override
+  void dispose() {
+    // 3. KORRIGERING: Ta bort lyssnare för att undvika minnesläckor
+    vm.removeListener(_onVmChange);
+    _latController.dispose();
+    _lonController.dispose();
+    // vm.dispose(); // Lägg till om du har dispose i VM
+    super.dispose();
   }
 
   Future<void> _fetchWeather() async {
     final latText = _latController.text;
     final lonText = _lonController.text;
 
-    // Nollställ endast flaggor, behåll gammal cached data
-    setState(() {
-      vm.isOffline = false;
-      vm.error = null;
-      // vm.weathers = []; <-- tas bort för att behålla cached data offline
-    });
+    // KORRIGERING: Ta bort alla setState() block härifrån!
+    // VM:en hanterar nu isLoading, isOffline och error.
 
     final lat = double.tryParse(latText);
     final lon = double.tryParse(lonText);
@@ -42,20 +56,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
       return;
     }
 
-    setState(() {
-      vm.isLoading = true;
-    });
-
     try {
+      // Anropet vm.loadWeather(lon, lat) är korrekt för SMHI API
       await vm.loadWeather(lon, lat);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error loading weather: $e")),
-      );
-    } finally {
-      setState(() {
-        vm.isLoading = false;
-      });
+      // Felmeddelanden hanteras av VM och visas i build-metoden via vm.error
+      // Du kan behålla SnackBar här om du vill ha ett extra UI-meddelande
     }
   }
 
@@ -67,24 +73,25 @@ class _WeatherScreenState extends State<WeatherScreen> {
       padding: const EdgeInsets.all(8.0),
       child: Row(
         children: [
+          // 4. KORRIGERING: Ändrad ordning i UI för att visa Longitud först
           Expanded(
             child: TextField(
-              controller: _latController,
+              controller: _lonController, // Longitud Controller
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: "Latitude"),
+              decoration: const InputDecoration(labelText: "Longitude"), // Longitude Fält
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
-              controller: _lonController,
+              controller: _latController, // Latitud Controller
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: "Longitude"),
+              decoration: const InputDecoration(labelText: "Latitude"), // Latitude Fält
             ),
           ),
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: _fetchWeather,
+            onPressed: vm.isLoading ? null : _fetchWeather, // Förhindra dubbelklick under laddning
           ),
         ],
       ),
@@ -92,6 +99,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
     final statusMessages = Column(
       children: [
+        // Lägg till laddningsindikator
+        if (vm.isLoading) const LinearProgressIndicator(), 
         if (vm.isOffline && vm.weathers.isNotEmpty)
           const Padding(
             padding: EdgeInsets.all(8.0),
