@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Vm/weather_vm.dart';
-import '../Service/weather_service.dart';
+import '../Model/weather_service.dart';
 import 'weather_view.dart';
 
 class WeatherScreen extends StatefulWidget {
@@ -20,12 +20,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
     super.initState();
     vm = WeatherVm(WeatherService());
    
-    // Detta gör att build-metoden körs om när VM ändrar status (offline-data, isLoading, error)
     vm.addListener(_onVmChange);
   }
 
   void _onVmChange() {
-    setState(() {}); // Rita om UI:n
+    setState(() {}); 
   }
 
   @override
@@ -80,7 +79,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.search),
-            onPressed: vm.isLoading ? null : _fetchWeather, // Förhindrar dubbelklick under laddning
+            onPressed: vm.isLoading ? null : _fetchWeather, 
           ),
         ],
       ),
