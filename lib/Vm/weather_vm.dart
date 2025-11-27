@@ -15,7 +15,7 @@ class WeatherVm extends ChangeNotifier {
   bool isOffline = false;
   String? error;
 
-  /// Ladda väderdata för givna koordinater
+  // Ladda väderdata för givna koordinater
   Future<void> loadWeather(double lon, double lat) async {
     isLoading = true;
     error = null;
@@ -75,7 +75,7 @@ class WeatherVm extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Filtrera till 7 dagar
+  // Filtrera till 7 dagar
   List<Weather> _extract7Days(List<Weather> allWeather) {
     final Map<String, Weather> daily = {};
     for (var w in allWeather) {
@@ -86,7 +86,7 @@ class WeatherVm extends ChangeNotifier {
     return daily.values.toList();
   }
 
-  /// Spara data lokalt (cache)
+  // Spara data lokalt (cache)
   Future<void> _saveWeatherLocally(List<Weather> weathers) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -98,11 +98,11 @@ class WeatherVm extends ChangeNotifier {
       
       await prefs.setString('saved_weather', jsonEncode(jsonList));
     } catch (e) {
-      // Hantera sparfel tyst eller logga om nödvändigt
+      debugPrint("Kunde inte spara väderdata lokalt: $e");
     }
   }
 
-  /// Ladda sparad data (cache)
+  // Ladda sparad data (cache)
   Future<void> _loadSavedWeather() async {
     try {
       final prefs = await SharedPreferences.getInstance();
