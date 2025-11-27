@@ -22,7 +22,7 @@ class WeatherParser {
       final temperatureC =
           (tempParam?['values']?[0] as num?)?.toDouble() ?? 0.0;
 
-      // Molnighet (omräkning från oktas -> procent)
+      // Molnighet (från oktas -> procent)
       final cloudParam = parameters.firstWhere(
         (p) => p['name'] == 'tcc_mean',
         orElse: () => null,
@@ -37,7 +37,7 @@ class WeatherParser {
       return Weather(
         date: DateTime.parse(validTime),
         temperatureC: temperatureC,
-        cloudiness: cloudPercent, // <-- nu procent!
+        cloudiness: cloudPercent, 
       );
     }).toList();
   }
