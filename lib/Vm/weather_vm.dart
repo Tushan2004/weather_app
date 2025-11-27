@@ -23,7 +23,6 @@ class WeatherVm extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. Snabbkoll: Har vi uppenbart ingen uppkoppling?
       final connectivity = await Connectivity().checkConnectivity();
       
       bool noConnection = connectivity == ConnectivityResult.none; 
@@ -34,26 +33,20 @@ class WeatherVm extends ChangeNotifier {
         return; 
       }
 
-      // 2. Försök hämta från API 
       final allWeather = await weatherService.fetchWeather(lon, lat);
       
-      // Om vi kommer hit lyckades hämtningen
       weathers = _extract7Days(allWeather);
       await _saveWeatherLocally(weathers); 
       isOffline = false;
 
     } catch (e) {
-      // 3. Hantera fel
       String errorMsg = e.toString();
 
-      // Kontrollera om det är ett API-fel (t.ex. ogiltiga koordinater som ger 404 eller 400)
       if (errorMsg.contains("404") || errorMsg.contains("400") || errorMsg.contains("out of bounds")) {
-        // Detta är INTE ett nätverksfel. Platsen är felaktig.
         weathers = []; 
         isOffline = false;
         error = "Platsen saknar väderdata (utanför SMHI:s område eller ogiltig).";
       } else {
-        // Detta är troligen ett nätverksfel -> Ladda cache
         await _loadSavedWeather();
         
         if (weathers.isNotEmpty) {

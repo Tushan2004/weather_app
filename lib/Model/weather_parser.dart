@@ -19,20 +19,25 @@ class WeatherParser {
         (p) => p['name'] == 't',
         orElse: () => null,
       );
-      final temperatureC = (tempParam?['values']?[0] as num?)?.toDouble() ?? 0.0;
+      final temperatureC =
+          (tempParam?['values']?[0] as num?)?.toDouble() ?? 0.0;
 
-      // Molnighet
+      // Molnighet (omräkning från oktas -> procent)
       final cloudParam = parameters.firstWhere(
         (p) => p['name'] == 'tcc_mean',
         orElse: () => null,
       );
-      final cloudiness = (cloudParam?['values']?[0] as num?)?.toDouble() ?? 0.0;
+
+      final cloudOktas =
+          (cloudParam?['values']?[0] as num?)?.toDouble() ?? 0.0;
+
+      // 0–8 oktas -> 0–100%
+      final cloudPercent = ((cloudOktas / 8) * 100).round().toDouble();
 
       return Weather(
         date: DateTime.parse(validTime),
         temperatureC: temperatureC,
-        cloudiness: cloudiness,
-        
+        cloudiness: cloudPercent, // <-- nu procent!
       );
     }).toList();
   }

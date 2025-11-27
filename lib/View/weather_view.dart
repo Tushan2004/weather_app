@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../Vm/weather_vm.dart';
 
+
 class WeatherView extends StatelessWidget {
   final WeatherVm vm;
 
@@ -9,19 +10,13 @@ class WeatherView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Om det laddar, visa snurra
     if (vm.isLoading) return const Center(child: CircularProgressIndicator());
 
-    // 2. KORRIGERING HÄR: 
-    // Om vi har data i listan, visa ALLTID listan! 
-    // (Även om vm.error är satt, för det hanteras av statusMessages i WeatherScreen)
     if (vm.weathers.isNotEmpty) {
       return ListView.builder(
         itemCount: vm.weathers.length,
         itemBuilder: (context, index) {
           final w = vm.weathers[index];
-          // Formatera datum (kräver intl package och initiering i main)
-          // Om du får fel här, använd w.date.toString() tillfälligt.
           String formattedDate = w.date.toString();
           try {
              formattedDate = DateFormat("EEE, dd MMM", 'sv_SE').format(w.date);
@@ -31,11 +26,11 @@ class WeatherView extends StatelessWidget {
 
           IconData icon;
           Color color;
-          if (w.cloudiness > 6) {
+          if (w.cloudiness > 70) {
             icon = Icons.cloud;
             color = Colors.blueGrey;
           } else if (w.cloudiness > 30) {
-            icon = Icons.cloud_queue;
+            icon = Icons.cloud;
             color = Colors.grey;
           } else {
             icon = Icons.wb_sunny;
@@ -60,7 +55,6 @@ class WeatherView extends StatelessWidget {
       );
     }
 
-    // 3. Om listan är TOM, DÅ visar vi felmeddelandet i mitten
     if (vm.error != null) {
       return Center(
         child: Padding(
@@ -74,7 +68,6 @@ class WeatherView extends StatelessWidget {
       );
     }
 
-    // 4. Tomt tillstånd
     return const Center(child: Text("Sök efter en plats för att se vädret."));
   }
 }
